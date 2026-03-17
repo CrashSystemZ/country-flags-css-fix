@@ -4,6 +4,27 @@ const replacementFontName = "Twemoji Country Flags";
 // The id the element containing all overwritten font families.
 const extentionStyleTagId = "country-flag-fixer-ext";
 
+// Icon font classes that must never be overridden with Twemoji.
+// These are appended as :not() exclusions to broad universal selectors.
+const iconFontNotSelectors = [
+  ':not([class^="gdi_"])',
+  ':not([class*=" gdi_"])',
+  ':not([class^="ri-"])',
+  ':not([class*=" ri-"])',
+  ':not([class^="fa-"])',
+  ':not([class*=" fa-"])',
+  ':not([class^="mdi-"])',
+  ':not([class*=" mdi-"])',
+  ':not([class^="icon-"])',
+  ':not([class*=" icon-"])',
+  ':not([class*="-icon-"])',
+  ':not(.fas)',
+  ':not(.far)',
+  ':not(.fab)',
+  ':not(.fal)',
+  ':not(.fad)',
+].join('');
+
 const extractFontFamilyRules = () => 
 {
   const fontFamilyRules = [];
@@ -25,6 +46,10 @@ const extractFontFamilyRules = () =>
       for (const rule of sheet.cssRules) {
 
         if (!rule.style || !rule.style?.fontFamily) 
+          continue;
+
+        // Skip rules without a selectorText (e.g. @font-face, @keyframes, @media)
+        if (!rule.selectorText)
           continue;
 
         const selectorText = rule.selectorText;
@@ -56,14 +81,52 @@ const createNewStyleTag = (fontFamilyRules) =>
   style.setAttribute("id", extentionStyleTagId);
 
   fontFamilyRules.forEach((rule) => {
+    let selector = rule.selectorText;
+
+    // Append icon-font exclusions to EVERY selector so icon elements are never matched
+    // by ANY Twemoji rule, regardless of specificity. This handles cases like
+    // ':lang(en) .bold' (specificity 0,1,1) which beats '[class^="ri-"]' (0,1,0).
+    // For compound selectors ('a, b') we must append to each comma-separated part.
+    selector = selector
+      .split(',')
+      .map(part => part.trim() + iconFontNotSelectors)
+      .join(', ');
+
     // Set the Country Flags font as main property; set the original font(s) as 'fallback'
-    style.textContent += `${rule.selectorText} { font-family: '${replacementFontName}', ${rule.fontFamily} !important; }\n`;
+    style.textContent += `${selector} { font-family: '${replacementFontName}', ${rule.fontFamily} !important; }\n`;
   });
 
+  // Restore icon fonts that were overridden by other (lower-specificity) rules.
   style.textContent += `
-        [class^="ri-"], [class*=" ri-"] {
-        font-family: 'remixicon' !important;
-        font-style: normal !important;
+    [class^="gdi_"], [class*=" gdi_"] {
+      font-family: 'SmartPortalFont' !important;
+      font-style: normal !important;
+    }
+    [class^="ri-"], [class*=" ri-"] {
+      font-family: 'remixicon' !important;
+      font-style: normal !important;
+    }
+    .fas, .far, .fal, .fab, .fad,
+    [class^="fa-"], [class*=" fa-"] {
+      font-family: 'Font Awesome 6 Free', 'Font Awesome 5 Free', 'Font Awesome 5 Brands', 'FontAwesome' !important;
+      font-style: normal !important;
+    }
+    [class^="material-icons"], [class*=" material-icons"] {
+      font-family: 'Material Icons' !important;
+      font-style: normal !important;
+    }
+    [class^="material-symbols"], [class*=" material-symbols"] {
+      font-family: 'Material Symbols Outlined' !important;
+      font-style: normal !important;
+    }
+    [class^="mdi-"], [class*=" mdi-"] {
+      font-family: 'Material Design Icons' !important;
+      font-style: normal !important;
+    }
+    [class^="icon-"], [class*=" icon-"],
+    [class*="-icon-"] {
+      font-family: inherit !important;
+      font-style: normal !important;
     }
   `;
 
