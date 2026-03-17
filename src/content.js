@@ -60,6 +60,13 @@ const createNewStyleTag = (fontFamilyRules) =>
     style.textContent += `${rule.selectorText} { font-family: '${replacementFontName}', ${rule.fontFamily} !important; }\n`;
   });
 
+  style.textContent += `
+        [class^="ri-"], [class*=" ri-"] {
+        font-family: 'remixicon' !important;
+        font-style: normal !important;
+    }
+  `;
+
   return style;
 };
 
